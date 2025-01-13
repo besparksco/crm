@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的會員條碼</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f7f7f7;
+        }
+        .barcode-container {
+            margin: 10px auto;
+            text-align: center;
+            width: 95%;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        .barcode-container img {
+            width: 95%;
+            height: auto;
+            border: 1px solid #ddd;
+            padding: 5px;
+            background: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="barcodeDisplay" class="barcode-container"></div>
+    <div id="errorMessage" class="error"></div>
+
+    <script>
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        async function initializeLiff() {
+            try {
+                const liffId = getUrlParameter('liffId');
+                if (!liffId) {
+                    throw new Error('LIFF ID not provided in URL parameters');
+                }
+
+                await liff.init({ 
+                    liffId: liffId,
+                    withLoginOnExternalBrowser: true,
+                });
+                
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    displayBarcode();
+                }
+            } catch (err) {
+                document.getElementById('errorMessage').textContent = 
+                    'Error initializing LIFF: ' + err.message;
+            }
+        }
+
+        function displayBarcode() {
+            try {
+                const barcodeText = getUrlParameter('text');
+                if (!barcodeText) {
+                    throw new Error('Barcode text not provided in URL parameters');
+                }
+
+                const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeText)}&includetext`;
+                
+                const barcodeImage = document.createElement('img');
+                barcodeImage.src = barcodeUrl;
+                barcodeImage.alt = `會員條碼`;
+                barcodeImage.onerror = () => {
+                    document.getElementById('errorMessage').textContent = 
+                        'Error generating barcode';
+                };
+
+                const container = document.getElementById('barcodeDisplay');
+                container.innerHTML = '';
+                container.appendChild(barcodeImage);
+            } catch (err) {
+                document.getElementById('errorMessage').textContent = err.message;
+            }
+        }
+
+        window.addEventListener('load', initializeLiff);
+    </script>
+</body>
+</html>
