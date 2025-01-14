@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF Redirect Xano</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        .container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            margin: 5px;
+            display: block;
+            min-width: 200px;
+        }
+        .close-button {
+            background-color: #00B900;
+        }
+        .close-button:hover {
+            background-color: #009900;
+        }
+        .redirect-button {
+            background-color: #4285f4;
+        }
+        .redirect-button:hover {
+            background-color: #3367d6;
+        }
+        .loading {
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            color: #333;
+        }
+        .buttons-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <div class="container">
+            <div id="loadingText" class="loading">Redirecting...</div>
+            <div id="buttonsContainer" class="buttons-container">
+                <button class="button close-button" onclick="closeWindow()">Close Window</button>
+                <button id="redirectButton" class="button redirect-button" onclick="handleManualRedirect()">Go to Website</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let savedCleanUrl = '';
+
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            console.log(`${timestamp}: ${message}`);
+        }
+
+        async function processRedirect(urlToUse) {
+            try {
+                log('Starting redirect process');
+                const urlParams = new URLSearchParams(new URL(urlToUse).search);
+                let targetUrl = urlParams.get('url');
+
+                if (!targetUrl) {
+                    throw new Error('Target URL not found in parameters');
+                }
+
+                targetUrl = decodeURIComponent(decodeURIComponent(targetUrl));
+
+                log('Getting LIFF profile');
+                const profile = await liff.getProfile();
+                const userId = profile.userId;
+                log(`User ID: ${userId}`);
+
+                log('Sending request to Xano endpoint');
+                const redirectEndpoint = 'https://api.besparks.co/api:G90hiIoE/redirect';
+                const xanoResponse = await fetch(`${redirectEndpoint}?url=${encodeURIComponent(targetUrl)}&userId=${encodeURIComponent(userId)}`);
+
+                if (!xanoResponse.ok) {
+                    throw new Error(`Xano response not OK: ${xanoResponse.status}`);
+                }
+
+                const redirectData = await xanoResponse.json();
+
+                if (!redirectData || !redirectData.redirectUrl) {
+                    throw new Error('Invalid response from Xano endpoint');
+                }
+
+                log(`Redirecting to: ${redirectData.redirectUrl}`);
+                await handleRedirect(redirectData.redirectUrl);
+            } catch (error) {
+                log(`Error in processRedirect: ${error.message}`);
+                throw error;
+            }
+        }
+
+        function closeWindow() {
+            log('Attempting to close window');
+            if (liff.isInClient && liff.isInClient()) {
+                liff.closeWindow();
+            } else {
+                window.close();
+                setTimeout(() => {
+                    window.history.back();
+                }, 100);
+            }
+        }
+
+        async function handleRedirect(cleanUrl) {
+            log(`Handling redirect to: ${cleanUrl}`);
+            savedCleanUrl = cleanUrl;
+
+            if (liff.isInClient()) {
+                log('Redirecting in LINE client');
+                await liff.openWindow({
+                    url: cleanUrl,
+                    external: false
+                });
+            } else {
+                log('Redirecting in external browser');
+                window.location.replace(cleanUrl);
+            }
+        }
+
+        function handleManualRedirect() {
+            if (savedCleanUrl) {
+                log('Manual redirect triggered');
+                handleRedirect(savedCleanUrl);
+            }
+        }
+
+        async function initializeLiff() {
+            try {
+                log('Starting LIFF initialization');
+                const liffId = new URLSearchParams(window.location.search).get('liffId');
+                if (!liffId) {
+                    throw new Error('LIFF ID not found');
+                }
+
+                await liff.init({ liffId, withLoginOnExternalBrowser: false });
+                log('LIFF initialized successfully');
+
+                if (!liff.isLoggedIn()) {
+                    log('User not logged in, redirecting to LINE login');
+                    liff.login({ redirectUri: window.location.href });
+                    return;
+                }
+
+                const currentUrl = window.location.href;
+                log(`Using URL: ${currentUrl}`);
+                await processRedirect(currentUrl);
+            } catch (err) {
+                log(`Error in initializeLiff: ${err.message}`);
+                document.getElementById('loadingText').style.display = 'none';
+                document.getElementById('buttonsContainer').style.display = 'block';
+            }
+        }
+
+        log('Application starting');
+        initializeLiff();
+    </script>
+</body>
+</html>
