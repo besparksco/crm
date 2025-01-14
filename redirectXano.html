@@ -93,22 +93,10 @@
                 const userId = profile.userId;
                 log(`User ID: ${userId}`);
 
-                log('Sending request to Xano endpoint');
-                const redirectEndpoint = 'https://api.besparks.co/api:G90hiIoE/redirect';
-                const xanoResponse = await fetch(`${redirectEndpoint}?url=${encodeURIComponent(cleanUrl)}&userId=${encodeURIComponent(userId)}&tags=${encodeURIComponent(tags)}`);
+                const redirectUrl = `https://api.besparks.co/api:G90hiIoE/redirect?url=${encodeURIComponent(cleanUrl)}&userId=${encodeURIComponent(userId)}&tags=${encodeURIComponent(tags)}`;
 
-                if (!xanoResponse.ok) {
-                    throw new Error(`Xano response not OK: ${xanoResponse.status}`);
-                }
-
-                const redirectData = await xanoResponse.json();
-
-                if (!redirectData || !redirectData.redirectUrl) {
-                    throw new Error('Invalid response from Xano endpoint');
-                }
-
-                log(`Redirecting to: ${redirectData.redirectUrl}`);
-                await handleRedirect(redirectData.redirectUrl);
+                log(`Redirecting to: ${redirectUrl}`);
+                await handleRedirect(redirectUrl);
             } catch (error) {
                 log(`Error in processRedirect: ${error.message}`);
                 throw error;
@@ -120,10 +108,12 @@
             if (liff.isInClient && liff.isInClient()) {
                 liff.closeWindow();
             } else {
-                window.close();
-                setTimeout(() => {
+                try {
+                    window.open('', '_self').close();
+                } catch (err) {
+                    log('Close window failed, navigating back instead.');
                     window.history.back();
-                }, 100);
+                }
             }
         }
 
