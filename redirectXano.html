@@ -28,13 +28,25 @@
     </div>
 
     <script>
-        // 初始化效能追蹤
+        // 清除舊的紀錄
+        localStorage.removeItem('redirectTimings');
+        
         const performance = {
             startTime: Date.now(),
             timestamps: {},
+            logs: [],
             addTimestamp(label) {
                 this.timestamps[label] = Date.now() - this.startTime;
-                log(`Time - ${label}: ${this.timestamps[label]}ms`);
+                const logMessage = `Time - ${label}: ${this.timestamps[label]}ms`;
+                this.logs.push(logMessage);
+                console.log(logMessage);
+                
+                // 儲存到 localStorage
+                localStorage.setItem('redirectTimings', JSON.stringify({
+                    timestamps: this.timestamps,
+                    logs: this.logs,
+                    lastUpdate: new Date().toISOString()
+                }));
             }
         };
         
@@ -42,6 +54,7 @@
             const timestamp = new Date().toISOString();
             const logMessage = `${timestamp}: ${message}`;
             console.log(logMessage);
+            performance.logs.push(logMessage);
         }
 
         function getDeviceInfo() {
@@ -87,7 +100,11 @@
 
                 // 在重定向前記錄總執行時間
                 performance.addTimestamp('total_execution_time');
-                window.location.href = redirectUrl;
+                
+                // 設置一個短暫的延遲確保數據被保存
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 50);
             } catch (error) {
                 log(`Error in processRedirect: ${error.message}`);
                 log(`Error stack: ${error.stack}`);
