@@ -48,7 +48,8 @@
                 let targetUrl = urlParams.get('url');
 
                 if (!targetUrl) {
-                    throw new Error('Target URL not found in parameters');
+                    log('Error: Target URL not found in parameters');
+                    return;
                 }
 
                 log('Target URL found: ' + targetUrl);
@@ -75,8 +76,17 @@
             } catch (error) {
                 log(`Error in processRedirect: ${error.message}`);
                 log(`Error stack: ${error.stack}`);
-                document.getElementById('loadingText').textContent = 'Error occurred during redirect';
-                throw error;
+            }
+        }
+
+        async function handleUserRedirect() {
+            try {
+                log('Getting user profile');
+                const profile = await liff.getProfile();
+                log('Got user ID: ' + profile.userId);
+                await processRedirect(window.location.href, profile.userId);
+            } catch (error) {
+                log(`Error in handleUserRedirect: ${error.message}`);
             }
         }
 
@@ -91,7 +101,8 @@
                 log(`Found LIFF ID: ${liffId}`);
 
                 if (!liffId) {
-                    throw new Error('LIFF ID not found in URL parameters');
+                    log('Error: LIFF ID not found in URL parameters');
+                    return;
                 }
 
                 // Initialize LIFF
@@ -99,28 +110,17 @@
                 await liff.init({ liffId });
                 log('LIFF initialized successfully');
 
-                // Check login status
-                if (!liff.isLoggedIn()) {
+                // Check login status and handle redirect
+                if (liff.isLoggedIn()) {
+                    log('User is logged in');
+                    await handleUserRedirect();
+                } else {
                     log('User not logged in, redirecting to LINE login');
-                    await liff.login();
-                }
-
-                // Get user profile
-                try {
-                    const profile = await liff.getProfile();
-                    log('Got user ID: ' + profile.userId);
-                    
-                    // Process redirect with user ID
-                    await processRedirect(window.location.href, profile.userId);
-                } catch (profileError) {
-                    log('Could not get user ID: ' + profileError.message);
-                    document.getElementById('loadingText').textContent = 'Error getting user profile';
-                    throw profileError;
+                    liff.login({ redirectUri: window.location.href });
                 }
             } catch (err) {
                 log(`Error in initializeLiff: ${err.message}`);
                 log(`Error stack: ${err.stack}`);
-                document.getElementById('loadingText').textContent = 'Error occurred during initialization';
             }
         }
 
