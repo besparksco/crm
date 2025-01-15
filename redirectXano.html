@@ -106,7 +106,11 @@
                 log('Attempting LIFF initialization');
                 await liff.init({ liffId });
                 log('LIFF initialized successfully');
-
+                
+                const profile = await liff.getProfile();
+                userId = profile.userId;
+                log('Got user ID: ' + userId);
+                
                 const currentUrl = window.location.href;
                 await processRedirect(currentUrl);
             } catch (err) {
