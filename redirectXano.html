@@ -41,7 +41,7 @@
             return 'desktop';
         }
 
-        async function processRedirect(urlToUse) {
+        async function processRedirect(urlToUse, userId) {
             try {
                 log('Starting redirect process');
                 const urlParams = new URLSearchParams(new URL(urlToUse).search);
@@ -66,21 +66,6 @@
                 log('Clean URL: ' + cleanUrl);
 
                 const deviceType = getDeviceInfo();
-                let userId = 'unknown';
-
-                if (!liff.isLoggedIn()) {
-                    log('User not logged in, redirecting to LINE login');
-                    await liff.login();
-                }
-                
-                try {
-                    const profile = await liff.getProfile();
-                    userId = profile.userId;
-                    log('Got user ID: ' + userId);
-                } catch (profileError) {
-                    log('Could not get user ID: ' + profileError.message);
-                }
-
                 log(`Device: ${deviceType}`);
 
                 const redirectUrl = `https://api.besparks.co/api:G90hiIoE/redirect?url=${encodeURIComponent(cleanUrl)}&userId=${encodeURIComponent(userId)}&tags=${tags ? encodeURIComponent(tags) : ''}&device=${deviceType}`;
@@ -109,16 +94,33 @@
                     throw new Error('LIFF ID not found in URL parameters');
                 }
 
+                // Initialize LIFF
                 log('Attempting LIFF initialization');
                 await liff.init({ liffId });
                 log('LIFF initialized successfully');
-                
-                const currentUrl = window.location.href;
-                await processRedirect(currentUrl);
+
+                // Check login status
+                if (!liff.isLoggedIn()) {
+                    log('User not logged in, redirecting to LINE login');
+                    await liff.login();
+                }
+
+                // Get user profile
+                try {
+                    const profile = await liff.getProfile();
+                    log('Got user ID: ' + profile.userId);
+                    
+                    // Process redirect with user ID
+                    await processRedirect(window.location.href, profile.userId);
+                } catch (profileError) {
+                    log('Could not get user ID: ' + profileError.message);
+                    document.getElementById('loadingText').textContent = 'Error getting user profile';
+                    throw profileError;
+                }
             } catch (err) {
                 log(`Error in initializeLiff: ${err.message}`);
                 log(`Error stack: ${err.stack}`);
-                document.getElementById('loadingText').textContent = 'Error occurred during redirect';
+                document.getElementById('loadingText').textContent = 'Error occurred during initialization';
             }
         }
 
