@@ -67,6 +67,11 @@
 
                 const deviceType = getDeviceInfo();
                 let userId = 'unknown';
+
+                if (!liff.isLoggedIn()) {
+                    log('User not logged in, redirecting to LINE login');
+                    await liff.login();
+                }
                 
                 try {
                     const profile = await liff.getProfile();
@@ -85,6 +90,7 @@
             } catch (error) {
                 log(`Error in processRedirect: ${error.message}`);
                 log(`Error stack: ${error.stack}`);
+                document.getElementById('loadingText').textContent = 'Error occurred during redirect';
                 throw error;
             }
         }
@@ -106,10 +112,6 @@
                 log('Attempting LIFF initialization');
                 await liff.init({ liffId });
                 log('LIFF initialized successfully');
-                
-                const profile = await liff.getProfile();
-                userId = profile.userId;
-                log('Got user ID: ' + userId);
                 
                 const currentUrl = window.location.href;
                 await processRedirect(currentUrl);
