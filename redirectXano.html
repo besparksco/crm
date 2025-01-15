@@ -66,6 +66,13 @@
             console.log(`${timestamp}: ${message}`);
         }
 
+        function getDeviceInfo() {
+            const ua = navigator.userAgent;
+            if (/mobile/i.test(ua)) return 'mobile';
+            if (/tablet/i.test(ua)) return 'tablet';
+            return 'desktop';
+        }
+
         async function processRedirect(urlToUse) {
             try {
                 log('Starting redirect process');
@@ -91,21 +98,25 @@
                 log('Getting LIFF profile');
                 const profile = await liff.getProfile();
                 const userId = profile.userId;
-                log(`User ID: ${userId}`);
+                const deviceType = getDeviceInfo();
+                log(`User ID: ${userId}, Device: ${deviceType}`);
 
-                const redirectUrl = `https://api.besparks.co/api:G90hiIoE/redirect?url=${encodeURIComponent(cleanUrl)}&userId=${encodeURIComponent(userId)}&tags=${tags ? encodeURIComponent(tags) : ''}`;
+                const redirectUrl = `https://api.besparks.co/api:G90hiIoE/redirect?url=${encodeURIComponent(cleanUrl)}&userId=${encodeURIComponent(userId)}&tags=${tags ? encodeURIComponent(tags) : ''}&device=${deviceType}`;
 
                 log(`Redirecting to: ${redirectUrl}`);
-                await handleRedirect(redirectUrl);
+                window.location.href = redirectUrl;
             } catch (error) {
                 log(`Error in processRedirect: ${error.message}`);
+                document.getElementById('loadingText').style.display = 'none';
+                document.getElementById('buttonsContainer').style.display = 'block';
+                savedCleanUrl = cleanUrl;
                 throw error;
             }
         }
 
         function closeWindow() {
             log('Attempting to close window');
-            if (liff.isInClient && liff.isInClient()) {
+            if (liff.isInClient()) {
                 liff.closeWindow();
             } else {
                 try {
@@ -117,26 +128,10 @@
             }
         }
 
-        async function handleRedirect(cleanUrl) {
-            log(`Handling redirect to: ${cleanUrl}`);
-            savedCleanUrl = cleanUrl;
-
-            if (liff.isInClient()) {
-                log('Redirecting in LINE client');
-                await liff.openWindow({
-                    url: cleanUrl,
-                    external: false
-                });
-            } else {
-                log('Redirecting in external browser');
-                window.location.replace(cleanUrl);
-            }
-        }
-
         function handleManualRedirect() {
             if (savedCleanUrl) {
                 log('Manual redirect triggered');
-                handleRedirect(savedCleanUrl);
+                window.location.href = savedCleanUrl;
             }
         }
 
