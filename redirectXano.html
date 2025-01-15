@@ -13,37 +13,42 @@
             transform: translate(-50%, -50%);
             text-align: center;
         }
-        .button {
-            padding: 10px 20px;
-            font-size: 16px;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: Arial, sans-serif;
-            margin: 5px;
-            display: block;
-            min-width: 200px;
-        }
-        .close-button {
-            background-color: #00B900;
-        }
-        .close-button:hover {
-            background-color: #009900;
-        }
-        .redirect-button {
-            background-color: #4285f4;
-        }
-        .redirect-button:hover {
-            background-color: #3367d6;
-        }
         .loading {
             font-family: Arial, sans-serif;
             font-size: 18px;
             color: #333;
         }
-        .buttons-container {
-            display: none;
+        #logContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 9999;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #logToggle {
+            position: fixed;
+            bottom: 230px;
+            left: 20px;
+            z-index: 10000;
+            padding: 5px 10px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -51,20 +56,31 @@
     <div id="content">
         <div class="container">
             <div id="loadingText" class="loading">Redirecting...</div>
-            <div id="buttonsContainer" class="buttons-container">
-                <button class="button close-button" onclick="closeWindow()">Close Window</button>
-                <button id="redirectButton" class="button redirect-button" onclick="handleManualRedirect()">Go to Website</button>
-            </div>
         </div>
     </div>
 
-    <script>
-        let savedCleanUrl = '';
+    <button id="logToggle">Toggle Logs</button>
+    <div id="logContainer" style="display: none;"></div>
 
+    <script>
         function log(message) {
             const timestamp = new Date().toISOString();
-            console.log(`${timestamp}: ${message}`);
+            const logMessage = `${timestamp}: ${message}`;
+            
+            console.log(logMessage);
+            
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = logMessage;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
+
+        document.getElementById('logToggle').addEventListener('click', function() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.style.display = logContainer.style.display === 'none' ? 'block' : 'none';
+        });
 
         function getDeviceInfo() {
             const ua = navigator.userAgent;
@@ -83,76 +99,68 @@
                     throw new Error('Target URL not found in parameters');
                 }
 
+                log('Target URL found: ' + targetUrl);
                 targetUrl = decodeURIComponent(decodeURIComponent(targetUrl));
+                log('Decoded URL: ' + targetUrl);
 
                 const targetUrlObj = new URL(targetUrl);
                 const targetParams = new URLSearchParams(targetUrlObj.search);
 
-                // Extract tags and remove from targetUrl
                 const tags = targetParams.get('tags');
                 targetParams.delete('tags');
                 targetUrlObj.search = targetParams.toString();
 
                 const cleanUrl = targetUrlObj.toString();
+                log('Clean URL: ' + cleanUrl);
 
-                log('Getting LIFF profile');
-                const profile = await liff.getProfile();
-                const userId = profile.userId;
                 const deviceType = getDeviceInfo();
-                log(`User ID: ${userId}, Device: ${deviceType}`);
+                let userId = 'unknown';
+                
+                try {
+                    const profile = await liff.getProfile();
+                    userId = profile.userId;
+                    log('Got user ID: ' + userId);
+                } catch (profileError) {
+                    log('Could not get user ID: ' + profileError.message);
+                }
+
+                log(`Device: ${deviceType}`);
 
                 const redirectUrl = `https://api.besparks.co/api:G90hiIoE/redirect?url=${encodeURIComponent(cleanUrl)}&userId=${encodeURIComponent(userId)}&tags=${tags ? encodeURIComponent(tags) : ''}&device=${deviceType}`;
-
-                log(`Redirecting to: ${redirectUrl}`);
+                
+                log('Final redirect URL: ' + redirectUrl);
                 window.location.href = redirectUrl;
             } catch (error) {
                 log(`Error in processRedirect: ${error.message}`);
-                document.getElementById('loadingText').style.display = 'none';
-                document.getElementById('buttonsContainer').style.display = 'block';
-                savedCleanUrl = cleanUrl;
+                log(`Error stack: ${error.stack}`);
                 throw error;
-            }
-        }
-
-        function closeWindow() {
-            log('Attempting to close window');
-            if (liff.isInClient()) {
-                liff.closeWindow();
-            } else {
-                try {
-                    window.open('', '_self').close();
-                } catch (err) {
-                    log('Close window failed, navigating back instead.');
-                    window.history.back();
-                }
-            }
-        }
-
-        function handleManualRedirect() {
-            if (savedCleanUrl) {
-                log('Manual redirect triggered');
-                window.location.href = savedCleanUrl;
             }
         }
 
         async function initializeLiff() {
             try {
                 log('Starting LIFF initialization');
-                const liffId = new URLSearchParams(window.location.search).get('liffId');
+                const urlParams = new URLSearchParams(window.location.search);
+                const liffId = urlParams.get('liffId');
+                
+                log(`Current URL: ${window.location.href}`);
+                log(`URL parameters: ${window.location.search}`);
+                log(`Found LIFF ID: ${liffId}`);
+
                 if (!liffId) {
-                    throw new Error('LIFF ID not found');
+                    throw new Error('LIFF ID not found in URL parameters');
                 }
 
+                log('Attempting LIFF initialization');
                 await liff.init({ liffId });
                 log('LIFF initialized successfully');
 
                 const currentUrl = window.location.href;
-                log(`Using URL: ${currentUrl}`);
                 await processRedirect(currentUrl);
             } catch (err) {
                 log(`Error in initializeLiff: ${err.message}`);
-                document.getElementById('loadingText').style.display = 'none';
-                document.getElementById('buttonsContainer').style.display = 'block';
+                log(`Error stack: ${err.stack}`);
+                document.getElementById('loadingText').textContent = 'Error occurred during redirect';
             }
         }
 
