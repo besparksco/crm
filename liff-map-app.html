@@ -169,6 +169,16 @@
                     ]
                 });
 
+                // 新增中心點標記
+                new google.maps.Marker({
+                  position: center,
+                  map: map,
+                  icon: {
+                    path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                    scale: 10
+                  }
+                });
+                
                 // 新增所有門市標記
                 stores.forEach(store => {
                     const marker = new google.maps.Marker({
