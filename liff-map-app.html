@@ -26,10 +26,23 @@
         let map;
         let markers = [];
         
-        // 從 URL 獲取 LIFF ID
-        function getLiffIdFromUrl() {
+        // 解析 URL 參數
+        function getUrlParams() {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('liffId');
+            return {
+                liffId: urlParams.get('liffId'),
+                lat: parseFloat(urlParams.get('lat')),
+                lng: parseFloat(urlParams.get('lng'))
+            };
+        }
+
+        // 獲取用戶位置
+        function getUserLocation() {
+            const { lat, lng } = getUrlParams();
+            if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+                return { lat, lng };
+            }
+            return null;
         }
 
         // 獲取門市資料
@@ -38,7 +51,6 @@
                 const response = await fetch('https://api.besparks.co/api:G90hiIoE/companyStore/list');
                 const data = await response.json();
                 
-                // 轉換 API 資料格式以符合地圖使用需求
                 return data.map(store => ({
                     position: { 
                         lat: parseFloat(store.latitude), 
@@ -61,7 +73,7 @@
         // 初始化 LIFF
         async function initializeLiff() {
             try {
-                const liffId = getLiffIdFromUrl();
+                const { liffId } = getUrlParams();
                 if (!liffId) {
                     throw new Error('未提供 LIFF ID');
                 }
@@ -85,8 +97,9 @@
                 return;
             }
 
-            // 設定地圖中心點（以第一個門市為中心）
-            const center = stores[0].position;
+            // 獲取用戶位置作為地圖中心點
+            const userLocation = getUserLocation();
+            const center = userLocation || stores[0].position;
             
             // 建立地圖
             map = new google.maps.Map(document.getElementById('map'), {
@@ -102,6 +115,23 @@
                 ]
             });
 
+            // 如果有用戶位置，加入用戶位置標記
+            if (userLocation) {
+                new google.maps.Marker({
+                    position: userLocation,
+                    map: map,
+                    title: '您的位置',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: "#4285F4",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2,
+                    }
+                });
+            }
+
             // 新增所有門市標記
             stores.forEach(store => {
                 const marker = new google.maps.Marker({
@@ -110,14 +140,11 @@
                     title: store.title
                 });
 
-                // 新增 Info Window
                 const infowindow = new google.maps.InfoWindow({
                     content: store.content
                 });
 
-                // 點擊標記時開啟 Info Window
                 marker.addListener('click', () => {
-                    // 關閉其他已開啟的 Info Windows
                     markers.forEach(m => m.infowindow?.close());
                     infowindow.open(map, marker);
                 });
@@ -128,6 +155,7 @@
 
             // 調整地圖範圍以顯示所有標記
             const bounds = new google.maps.LatLngBounds();
+            if (userLocation) bounds.extend(userLocation);
             markers.forEach(marker => bounds.extend(marker.getPosition()));
             map.fitBounds(bounds);
         }
@@ -140,7 +168,7 @@
 
     <!-- 請替換 YOUR_GOOGLE_MAPS_API_KEY 為您的 API Key -->
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDKwJoeEVQBmNT8_EoiSueRCz5TZuVJS6k&callback=initMap">
+        src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap">
     </script>
 </body>
 </html>
