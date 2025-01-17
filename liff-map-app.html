@@ -42,7 +42,9 @@
             const urlParams = new URLSearchParams(window.location.search);
             return {
                 liffId: urlParams.get('liffId'),
-                storeData: urlParams.get('storeData')
+                storeData: urlParams.get('storeData'),
+                lat: parseFloat(urlParams.get('lat')), // 新增解析 lat
+                lng: parseFloat(urlParams.get('lng'))  // 新增解析 lng
             };
         }
 
@@ -130,7 +132,7 @@
         // 初始化 Google Maps
         async function initMap() {
             try {
-                const { storeData } = getUrlParams();
+                const { storeData, lat, lng } = getUrlParams();
 
                 if (!storeData) {
                     throw new Error('缺少門市資料');
@@ -146,8 +148,14 @@
                     throw new Error('沒有門市資料');
                 }
 
+                // 設定地圖中心點
+                const center = {
+                    // 如果 URL 有提供 lat 和 lng，就使用這些值，否則使用第一個商店的位置
+                    lat: !isNaN(lat) ? lat : stores[0].position.lat,
+                    lng: !isNaN(lng) ? lng : stores[0].position.lng
+                };
+
                 // 建立地圖
-                const center = stores[0].position;
                 map = new google.maps.Map(document.getElementById('map'), {
                     zoom: 15,
                     center: center,
