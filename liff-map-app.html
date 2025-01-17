@@ -1,174 +1,110 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>門市地圖</title>
-    <style>
-        #map {
-            height: 100vh;
-            width: 100%;
-        }
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
-</head>
-<body>
-    <div id="map"></div>
+<script>
+    let map;
+    let markers = [];
 
-    <!-- LIFF SDK -->
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    
-    <script>
-        let map;
-        let markers = [];
-        
-        // 解析 URL 參數
-        function getUrlParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return {
-                liffId: urlParams.get('liffId'),
-                lat: parseFloat(urlParams.get('lat')),
-                lng: parseFloat(urlParams.get('lng'))
-            };
+    // 解析 URL 參數
+    function getUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return {
+            liffId: urlParams.get('liffId'),
+            storeData: urlParams.get('storeData')
+        };
+    }
+
+    // 獲取門市資料
+    async function fetchStores(storeIds) {
+        try {
+            // 向伺服器傳送 storeIds 請求完整資料
+            const response = await fetch('https://api.besparks.co/api:G90hiIoE/companyStore/listByIds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ storeIds })
+            });
+            const data = await response.json();
+
+            return data.map(store => ({
+                position: { 
+                    lat: parseFloat(store.latitude), 
+                    lng: parseFloat(store.longitude)
+                },
+                title: store.store_name,
+                content: `
+                    <h3>${store.store_name}</h3>
+                    <p>${store.address}</p>
+                    ${store.link ? `<p><a href="${store.link}" target="_blank">更多資訊</a></p>` : ''}
+                `,
+                id: store.id
+            }));
+        } catch (error) {
+            console.error('獲取門市資料失敗:', error);
+            return [];
+        }
+    }
+
+    // 初始化 Google Maps
+    async function initMap() {
+        const { storeData } = getUrlParams();
+
+        if (!storeData) {
+            console.error('缺少門市資料');
+            return;
         }
 
-        // 獲取用戶位置
-        function getUserLocation() {
-            const { lat, lng } = getUrlParams();
-            if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                return { lat, lng };
-            }
-            return null;
-        }
+        // 解碼並解析 storeData
+        const storeIds = JSON.parse(decodeURIComponent(storeData));
 
         // 獲取門市資料
-        async function fetchStores() {
-            try {
-                const response = await fetch('https://api.besparks.co/api:G90hiIoE/companyStore/list');
-                const data = await response.json();
-                
-                return data.map(store => ({
-                    position: { 
-                        lat: parseFloat(store.latitude), 
-                        lng: parseFloat(store.longitude)
-                    },
-                    title: store.store_name,
-                    content: `
-                        <h3>${store.store_name}</h3>
-                        <p>${store.address}</p>
-                        ${store.link ? `<p><a href="${store.link}" target="_blank">更多資訊</a></p>` : ''}
-                    `,
-                    id: store.id
-                }));
-            } catch (error) {
-                console.error('獲取門市資料失敗:', error);
-                return [];
-            }
+        const stores = await fetchStores(storeIds);
+
+        if (stores.length === 0) {
+            console.error('沒有門市資料');
+            return;
         }
 
-        // 初始化 LIFF
-        async function initializeLiff() {
-            try {
-                const { liffId } = getUrlParams();
-                if (!liffId) {
-                    throw new Error('未提供 LIFF ID');
+        // 建立地圖
+        const center = stores[0].position;
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 15,
+            center: center,
+            disableDefaultUI: true,
+            styles: [
+                {
+                    featureType: "poi",
+                    elementType: "labels",
+                    stylers: [{ visibility: "off" }]
                 }
-                
-                await liff.init({ liffId: liffId });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                }
-            } catch (err) {
-                console.error('LIFF 初始化失敗', err);
-            }
-        }
+            ]
+        });
 
-        // 初始化 Google Maps
-        async function initMap() {
-            // 獲取門市資料
-            const stores = await fetchStores();
-            
-            if (stores.length === 0) {
-                console.error('沒有門市資料');
-                return;
-            }
-
-            // 獲取用戶位置作為地圖中心點
-            const userLocation = getUserLocation();
-            const center = userLocation || stores[0].position;
-            
-            // 建立地圖
-            map = new google.maps.Map(document.getElementById('map'), {
-                zoom: 15,
-                center: center,
-                disableDefaultUI: true,
-                styles: [
-                    {
-                        featureType: "poi",
-                        elementType: "labels",
-                        stylers: [{ visibility: "off" }]
-                    }
-                ]
+        // 新增所有門市標記
+        stores.forEach(store => {
+            const marker = new google.maps.Marker({
+                position: store.position,
+                map: map,
+                title: store.title
             });
 
-            // 如果有用戶位置，加入用戶位置標記
-            if (userLocation) {
-                new google.maps.Marker({
-                    position: userLocation,
-                    map: map,
-                    title: '您的位置',
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 10,
-                        fillColor: "#4285F4",
-                        fillOpacity: 1,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2,
-                    }
-                });
-            }
-
-            // 新增所有門市標記
-            stores.forEach(store => {
-                const marker = new google.maps.Marker({
-                    position: store.position,
-                    map: map,
-                    title: store.title
-                });
-
-                const infowindow = new google.maps.InfoWindow({
-                    content: store.content
-                });
-
-                marker.addListener('click', () => {
-                    markers.forEach(m => m.infowindow?.close());
-                    infowindow.open(map, marker);
-                });
-
-                marker.infowindow = infowindow;
-                markers.push(marker);
+            const infowindow = new google.maps.InfoWindow({
+                content: store.content
             });
 
-            // 調整地圖範圍以顯示所有標記
-            const bounds = new google.maps.LatLngBounds();
-            if (userLocation) bounds.extend(userLocation);
-            markers.forEach(marker => bounds.extend(marker.getPosition()));
-            map.fitBounds(bounds);
-        }
+            marker.addListener('click', () => {
+                markers.forEach(m => m.infowindow?.close());
+                infowindow.open(map, marker);
+            });
 
-        // 當網頁載入完成時初始化
-        window.onload = async () => {
-            await initializeLiff();
-        };
-    </script>
+            marker.infowindow = infowindow;
+            markers.push(marker);
+        });
 
-    <!-- 請替換 YOUR_GOOGLE_MAPS_API_KEY 為您的 API Key -->
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDKwJoeEVQBmNT8_EoiSueRCz5TZuVJS6k&callback=initMap">
-    </script>
-</body>
-</html>
+        // 調整地圖範圍以顯示所有標記
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach(marker => bounds.extend(marker.getPosition()));
+        map.fitBounds(bounds);
+    }
+
+    // 當網頁載入完成時初始化
+    window.onload = async () => {
+        await initializeLiff();
+    };
+</script>
