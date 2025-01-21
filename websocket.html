@@ -17,50 +17,52 @@
         .chat-container {
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 20px;
-            resize: both;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 80vh; /* 自適應高度 */
         }
-
+        
         .messages {
-            height: 400px;
+            flex: 1; /* 讓訊息區域填滿剩餘空間 */
             overflow-y: auto;
             border: 1px solid #ddd;
             padding: 10px;
             margin-bottom: 20px;
             border-radius: 4px;
         }
-
+        
         .message {
             margin: 10px 0;
             padding: 10px;
             border-radius: 4px;
             max-width: 80%;
         }
-
+        
         .received {
             background-color: #e3f2fd;
             margin-right: auto;
         }
-
+        
         .sent {
             background-color: #e8f5e9;
             margin-left: auto;
         }
-
+        
         .input-container {
             display: flex;
             gap: 10px;
         }
-
+        
         input {
             flex: 1;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            box-sizing: border-box;
         }
-
+        
         button {
             padding: 10px 20px;
             background-color: #2196f3;
@@ -68,12 +70,13 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            box-sizing: border-box;
         }
-
+        
         button:hover {
             background-color: #1976d2;
         }
-
+        
         .status {
             text-align: center;
             margin-bottom: 10px;
@@ -81,11 +84,11 @@
             padding: 10px;
             border-radius: 4px;
         }
-
+        
         .status.disconnected {
             background-color: #f44336;
         }
-
+        
         .status.connected {
             background-color: #4caf50;
         }
@@ -115,58 +118,46 @@
                 this.initializeWebSocket();
             }
 
-            initializeWebSocket() {
+             initializeWebSocket() {
                 try {
-                    // 接收訊息事件
-                    this.channel.on('message', (message) => {
-                        console.log('Received message:', message);
-                        if (message.payload && message.payload.data) {
-                            const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-                            this.displayMessage(`${message.payload.data} (${timestamp})`, 'received');
-                            }
-                    });
-
-                    // 接收連線狀態事件
-                    this.channel.on('connection_status', (message) => {
-                        console.log('Connection status event:', message);
-                        if (message.payload && message.payload.status === 'connected') {
-                            const statusEl = document.getElementById('connectionStatus');
-                            statusEl.textContent = '連線狀態: 已連接';
-                            statusEl.className = 'status connected';
+                    // 使用 switch(message.action) 處理 WebSocket 消息
+                    this.channel.on((message) => {
+                        switch (message.action) {
+                            case 'message':
+                                this.handleMessage(message.payload);
+                                break;
+                            case 'event':
+                                this.handleEvent(message.payload);
+                                break;
+                            default:
+                                console.info('Unhandled message:', message);
                         }
                     });
-
-                    // 監聽錯誤
-                    this.channel.on("error", (error) => {
-                        console.error('WebSocket error:', error);
-                        const statusEl = document.getElementById('connectionStatus');
-                        statusEl.textContent = '連線狀態: 錯誤';
-                        statusEl.className = 'status disconnected';
-                    });
-
-                    // 監聽斷線
-                    this.channel.on("disconnect", () => {
-                        const statusEl = document.getElementById('connectionStatus');
-                        statusEl.textContent = '連線狀態: 已斷開';
-                        statusEl.className = 'status disconnected';
-                    });
-
+        
                 } catch (error) {
-                    console.error('Connection error:', error);
-                    const statusEl = document.getElementById('connectionStatus');
-                    statusEl.textContent = '連線狀態: 連接失敗';
-                    statusEl.className = 'status disconnected';
+                    console.error('WebSocket initialization error:', error);
                 }
+            }
+
+            handleMessage(payload) {
+                if (payload && payload.data) {
+                    const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                    this.displayMessage(`${payload.data} (${timestamp})`, 'received');
+                }
+            }
+
+            handleEvent(payload) {
+                console.info('Event received:', payload);
+                // 如果需要，可以在這裡處理特定事件
             }
 
             async sendMessage() {
                 const input = document.getElementById('messageInput');
                 const message = input.value.trim();
                 const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-            
+        
                 if (message && this.channel) {
                     try {
-                        // 發送訊息到頻道
                         await this.channel.message(message);
                         this.displayMessage(`${message} (${timestamp})`, 'sent');
                         input.value = '';
@@ -180,13 +171,13 @@
                 const messagesDiv = document.getElementById('messages');
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${type}`;
-            
+        
                 if (type === 'received') {
                     messageElement.textContent = `對方: ${message}`;
                 } else if (type === 'sent') {
                     messageElement.textContent = `你: ${message}`;
                 }
-            
+        
                 messagesDiv.appendChild(messageElement);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
