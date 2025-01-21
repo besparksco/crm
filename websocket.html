@@ -93,42 +93,44 @@
         const baseUrl = 'https://api.besparks.co/api:0jzweymy';
         const hash = 'eGDwgb5b86PnHVO2OP528Bo7Avg';
         let xano;
-        let socket;
+        let channel;
 
         // 初始化 Xano SDK
         function initXano() {
-            xano = new Xano({
-                apiUrl: baseUrl
+            xano = new XanoClient({
+                instanceBaseUrl: baseUrl,
+                realtimeConnectionHash: hash
             });
-            connectWebSocket();
-        }
 
-        // 建立 WebSocket 連接
-        function connectWebSocket() {
-            try {
-                // 使用 Xano SDK 建立 WebSocket 連接
-                socket = xano.subscribe(hash, {
-                    // 連接成功時的回調
-                    socketId: (socketId) => {
-                        document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
-                        document.getElementById('connectionStatus').style.color = '#4caf50';
-                        console.log('Socket ID:', socketId);
-                    },
-                    // 接收訊息時的回調
-                    message: (message) => {
-                        displayMessage(message, 'received');
-                    },
-                    // 錯誤處理
-                    error: (error) => {
-                        console.error('WebSocket 錯誤:', error);
-                        document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
-                        document.getElementById('connectionStatus').style.color = '#f44336';
-                    }
-                });
+            // 建立 channel 連接
+            channel = xano.channel("chatRoom");
 
-            } catch (error) {
-                console.error('連接錯誤:', error);
-            }
+            // 監聽連接狀態
+            channel.on("connect", () => {
+                document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
+                document.getElementById('connectionStatus').style.color = '#4caf50';
+            });
+
+            // 監聽訊息
+            channel.on("message", (message) => {
+                displayMessage(message, 'received');
+            });
+
+            // 監聽錯誤
+            channel.on("error", (error) => {
+                console.error('WebSocket 錯誤:', error);
+                document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
+                document.getElementById('connectionStatus').style.color = '#f44336';
+            });
+
+            // 監聽斷線
+            channel.on("disconnect", () => {
+                document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
+                document.getElementById('connectionStatus').style.color = '#f44336';
+            });
+
+            // 連接到 channel
+            channel.connect();
         }
 
         // 發送訊息
@@ -136,15 +138,15 @@
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             
-            if (message && socket) {
+            if (message && channel) {
                 const messageObj = {
                     type: 'message',
                     content: message,
                     timestamp: new Date().toISOString()
                 };
                 
-                // 使用 Xano SDK 發送訊息
-                socket.publish(messageObj);
+                // 發送訊息到 channel
+                channel.publish(messageObj);
                 displayMessage(messageObj, 'sent');
                 input.value = '';
             }
