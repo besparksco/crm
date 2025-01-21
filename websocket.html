@@ -19,6 +19,8 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             padding: 20px;
+            resize: both;
+            overflow: hidden;
         }
 
         .messages {
@@ -176,17 +178,16 @@
                 const messagesDiv = document.getElementById('messages');
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${type}`;
-            
+
                 if (type === 'received') {
                     messageElement.textContent = `對方: ${message}`;
                 } else if (type === 'sent') {
                     messageElement.textContent = `你: ${message}`;
                 }
-            
+
                 messagesDiv.appendChild(messageElement);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
-
         }
 
         const chat = new ChatApp();
