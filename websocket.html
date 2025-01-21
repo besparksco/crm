@@ -121,8 +121,9 @@
                     this.channel.on('message', (message) => {
                         console.log('Received message:', message);
                         if (message.payload && message.payload.data) {
-                            this.displayMessage(message.payload.data, 'received');
-                        }
+                            const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                            this.displayMessage(`${message.payload.data} (${timestamp})`, 'received');
+                            }
                     });
 
                     // 接收連線狀態事件
@@ -161,12 +162,13 @@
             async sendMessage() {
                 const input = document.getElementById('messageInput');
                 const message = input.value.trim();
-
+                const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+            
                 if (message && this.channel) {
                     try {
                         // 發送訊息到頻道
                         await this.channel.message(message);
-                        this.displayMessage(message, 'sent');
+                        this.displayMessage(`${message} (${timestamp})`, 'sent');
                         input.value = '';
                     } catch (error) {
                         console.error('Error sending message:', error);
@@ -178,17 +180,16 @@
                 const messagesDiv = document.getElementById('messages');
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${type}`;
-
+            
                 if (type === 'received') {
                     messageElement.textContent = `對方: ${message}`;
                 } else if (type === 'sent') {
                     messageElement.textContent = `你: ${message}`;
                 }
-
+            
                 messagesDiv.appendChild(messageElement);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
-        }
 
         const chat = new ChatApp();
 
