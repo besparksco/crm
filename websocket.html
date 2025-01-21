@@ -123,15 +123,18 @@
                     // 使用 switch(message.action) 處理 WebSocket 消息
                     this.channel.on((message) => {
                         switch (message.action) {
-                            case 'message':
+                            case 'message': // 接收訊息
                                 this.handleMessage(message.payload);
                                 break;
-                            case 'event':
+                            case 'event': // 接收事件
                                 this.handleEvent(message.payload);
+                                break;
+                            case 'connection_status': // 更新連線狀態
+                                this.handleConnectionStatus(message.payload);
                                 break;
                             default:
                                 console.info('Unhandled message:', message);
-                        }
+                                }
                     });
         
                 } catch (error) {
@@ -139,6 +142,17 @@
                 }
             }
 
+            handleConnectionStatus(payload) {
+                const statusEl = document.getElementById('connectionStatus');
+                    if (payload.status === 'connected') {
+                        statusEl.textContent = '連線狀態: 已連接';
+                        statusEl.className = 'status connected';
+                    } else {
+                        statusEl.textContent = '連線狀態: 已斷開';
+                        statusEl.className = 'status disconnected';
+                    }
+            }
+            
             handleMessage(payload) {
                 if (payload && payload.data) {
                     const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
@@ -147,8 +161,10 @@
             }
 
             handleEvent(payload) {
-                console.info('Event received:', payload);
-                // 如果需要，可以在這裡處理特定事件
+                if (payload && payload.data) {
+                    const timestamp = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                    this.displayMessage(`事件: ${payload.data} (${timestamp})`, 'event');
+                }
             }
 
             async sendMessage() {
@@ -176,12 +192,15 @@
                     messageElement.textContent = `對方: ${message}`;
                 } else if (type === 'sent') {
                     messageElement.textContent = `你: ${message}`;
+                } else if (type === 'event') {
+                    messageElement.textContent = `${message}`;
                 }
         
                 messagesDiv.appendChild(messageElement);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
         }
+        
         const chat = new ChatApp();
 
         document.getElementById('messageInput').addEventListener('keypress', function (e) {
