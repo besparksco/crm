@@ -92,21 +92,22 @@
     <script>
         const baseUrl = 'https://api.besparks.co/api:0jzweymy';
         const hash = 'eGDwgb5b86PnHVO2OP528Bo7Avg';
-        let xano;
+        let client;
         let channel;
 
         // 初始化 Xano SDK
         function initXano() {
-            xano = new XanoClient({
-                instanceBaseUrl: baseUrl,
+            // 建立 XanoClient 實例
+            client = new XanoClient({
+                baseUrl: baseUrl,
                 realtimeConnectionHash: hash
             });
 
             // 建立 channel 連接
-            channel = xano.channel("chatRoom");
+            channel = client.realtime.channel('chatRoom');
 
             // 監聽連接狀態
-            channel.on("connect", () => {
+            client.realtime.on("connect", () => {
                 document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
                 document.getElementById('connectionStatus').style.color = '#4caf50';
             });
@@ -117,20 +118,17 @@
             });
 
             // 監聽錯誤
-            channel.on("error", (error) => {
+            client.realtime.on("error", (error) => {
                 console.error('WebSocket 錯誤:', error);
                 document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
                 document.getElementById('connectionStatus').style.color = '#f44336';
             });
 
             // 監聽斷線
-            channel.on("disconnect", () => {
+            client.realtime.on("disconnect", () => {
                 document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
                 document.getElementById('connectionStatus').style.color = '#f44336';
             });
-
-            // 連接到 channel
-            channel.connect();
         }
 
         // 發送訊息
@@ -146,7 +144,7 @@
                 };
                 
                 // 發送訊息到 channel
-                channel.publish(messageObj);
+                channel.send(messageObj);
                 displayMessage(messageObj, 'sent');
                 input.value = '';
             }
@@ -157,7 +155,7 @@
             const messagesDiv = document.getElementById('messages');
             const messageElement = document.createElement('div');
             messageElement.className = `message ${type}`;
-            messageElement.textContent = message.content;
+            messageElement.textContent = typeof message === 'object' ? message.content : message;
             messagesDiv.appendChild(messageElement);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
