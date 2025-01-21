@@ -90,87 +90,92 @@
     </div>
 
     <script>
-        class ChatApp {
-            constructor() {
-                this.xanoClient = new XanoClient({
-                    instanceBaseUrl: 'https://api.besparks.co/', // 請確認這是正確的 URL
-                    realtimeConnectionHash: 'eGDwgb5b86PnHVO2OP528Bo7Avg' // 請確認這是有效的 hash
+    class ChatApp {
+        constructor() {
+            // 初始化 Xano 客戶端
+            this.xanoClient = new XanoClient({
+                instanceBaseUrl: 'https://api.besparks.co/', // 替換為你的 Xano API URL
+                realtimeConnectionHash: 'eGDwgb5b86PnHVO2OP528Bo7Avg' // 替換為有效的 hash
+            });
+
+            // 定義頻道
+            this.channel = this.xanoClient.channel("chatRoom");
+            this.initializeWebSocket();
+        }
+
+        initializeWebSocket() {
+            try {
+                // 接收訊息時執行
+                this.channel.on((message) => {
+                    switch (message.action) {
+                        case 'message':
+                            this.displayMessage(message.payload, 'received');
+                            break;
+                        default:
+                            console.info('Other message:', message);
+                    }
                 });
 
-                this.channel = this.xanoClient.channel("chatRoom");
-                this.initializeWebSocket();
-            }
+                // 監聽連接成功
+                this.channel.on("connect", () => {
+                    document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
+                    document.getElementById('connectionStatus').style.color = '#4caf50';
+                });
 
-            initializeWebSocket() {
-                try {
-                    this.channel.on("message", (message) => {
-                        console.log('Received message:', message);
-                        this.displayMessage(message, 'received');
-                    });
-
-                    this.channel.on("connect", () => {
-                        document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
-                        document.getElementById('connectionStatus').style.color = '#4caf50';
-                    });
-
-                    this.channel.on("error", (error) => {
-                        console.error('WebSocket error:', error);
-                        document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
-                        document.getElementById('connectionStatus').style.color = '#f44336';
-                    });
-
-                    this.channel.on("disconnect", () => {
-                        document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
-                        document.getElementById('connectionStatus').style.color = '#f44336';
-                    });
-                } catch (error) {
-                    console.error('Connection error:', error);
-                    document.getElementById('connectionStatus').textContent = '連線狀態: 連接失敗';
+                // 監聽錯誤
+                this.channel.on("error", (error) => {
+                    console.error('WebSocket error:', error);
+                    document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
                     document.getElementById('connectionStatus').style.color = '#f44336';
-                }
-            }
+                });
 
-            async sendMessage() {
-                const input = document.getElementById('messageInput');
-                const message = input.value.trim();
+                // 監聽斷線
+                this.channel.on("disconnect", () => {
+                    document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
+                    document.getElementById('connectionStatus').style.color = '#f44336';
+                });
 
-                if (message && this.channel) {
-                    const messageObj = {
-                        type: 'message',
-                        content: message,
-                        timestamp: new Date().toISOString()
-                    };
-
-                    try {
-                        await this.channel.send(messageObj);
-                        this.displayMessage(messageObj, 'sent');
-                        input.value = '';
-                    } catch (error) {
-                        console.error('Error sending message:', error);
-                    }
-                }
-            }
-
-            displayMessage(message, type) {
-                const messagesDiv = document.getElementById('messages');
-                const messageElement = document.createElement('div');
-                messageElement.className = `message ${type}`;
-
-                const content = typeof message === 'object' ? message.content : message;
-                messageElement.textContent = content;
-
-                messagesDiv.appendChild(messageElement);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (error) {
+                console.error('Connection error:', error);
+                document.getElementById('connectionStatus').textContent = '連線狀態: 連接失敗';
+                document.getElementById('connectionStatus').style.color = '#f44336';
             }
         }
 
-        const chat = new ChatApp();
+        async sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
 
-        document.getElementById('messageInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                chat.sendMessage();
+            if (message && this.channel) {
+                try {
+                    // 發送訊息到頻道
+                    await this.channel.message(message);
+                    this.displayMessage(message, 'sent');
+                    input.value = '';
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                }
             }
-        });
-    </script>
+        }
+
+        displayMessage(message, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type}`;
+            messageElement.textContent = message;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    }
+
+    const chat = new ChatApp();
+
+    document.getElementById('messageInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            chat.sendMessage();
+        }
+    });
+</script>
+
 </body>
 </html>
