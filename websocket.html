@@ -115,24 +115,22 @@
 
             initializeWebSocket() {
                 try {
-                    // 接收訊息時執行
-                    this.channel.on((message) => {
-                        switch (message.action) {
-                            case 'message':
-                                if (message.payload && message.payload.data) {
-                                    this.displayMessage(message.payload.data, 'received');
-                                }
-                                break;
-                            default:
-                                console.info('Other message:', message);
+                    // 接收訊息事件
+                    this.channel.on('message', (message) => {
+                        console.log('Received message:', message);
+                        if (message.payload && message.payload.data) {
+                            this.displayMessage(message.payload.data, 'received');
                         }
                     });
 
-                    // 監聽連接成功
-                    this.channel.on("connect", () => {
-                        const statusEl = document.getElementById('connectionStatus');
-                        statusEl.textContent = '連線狀態: 已連接';
-                        statusEl.className = 'status connected';
+                    // 接收連線狀態事件
+                    this.channel.on('connection_status', (message) => {
+                        console.log('Connection status event:', message);
+                        if (message.payload && message.payload.status === 'connected') {
+                            const statusEl = document.getElementById('connectionStatus');
+                            statusEl.textContent = '連線狀態: 已連接';
+                            statusEl.className = 'status connected';
+                        }
                     });
 
                     // 監聽錯誤
