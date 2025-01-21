@@ -4,80 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>即時通訊應用</title>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@xano/js-sdk@latest/dist/xano.min.js"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        .chat-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 20px;
-        }
-
-        .messages {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-
-        .message {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-            max-width: 80%;
-        }
-
-        .received {
-            background-color: #e3f2fd;
-            margin-right: auto;
-        }
-
-        .sent {
-            background-color: #e8f5e9;
-            margin-left: auto;
-        }
-
-        .input-container {
-            display: flex;
-            gap: 10px;
-        }
-
-        input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        button {
-            padding: 10px 20px;
-            background-color: #2196f3;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #1976d2;
-        }
-
-        .status {
-            text-align: center;
-            margin-bottom: 10px;
-            color: #666;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@xano/js-sdk@latest/dist/xano.min.js"></script>
+    <!-- ... 保持原有的 style ... -->
 </head>
 <body>
     <div class="chat-container">
@@ -85,90 +13,99 @@
         <div class="messages" id="messages"></div>
         <div class="input-container">
             <input type="text" id="messageInput" placeholder="輸入訊息...">
-            <button onclick="sendMessage()">發送</button>
+            <button onclick="chat.sendMessage()">發送</button>
         </div>
     </div>
 
     <script>
-        const baseUrl = 'https://api.besparks.co/';
-        const hash = 'eGDwgb5b86PnHVO2OP528Bo7Avg';
-        let client;
-        let channel;
-
-        // 初始化 Xano SDK
-        function initXano() {
-            // 建立 XanoClient 實例
-            client = new XanoClient({
-                instanceBaseUrl: baseUrl,
-                realtimeConnectionHash: hash
-            });
-
-            // 建立 channel 連接
-            channel = client.realtime.channel('chatRoom');
-
-            // 監聽連接狀態
-            client.realtime.on("connect", () => {
-                document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
-                document.getElementById('connectionStatus').style.color = '#4caf50';
-            });
-
-            // 監聽訊息
-            channel.on("message", (message) => {
-                displayMessage(message, 'received');
-            });
-
-            // 監聽錯誤
-            client.realtime.on("error", (error) => {
-                console.error('WebSocket 錯誤:', error);
-                document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
-                document.getElementById('connectionStatus').style.color = '#f44336';
-            });
-
-            // 監聽斷線
-            client.realtime.on("disconnect", () => {
-                document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
-                document.getElementById('connectionStatus').style.color = '#f44336';
-            });
-        }
-
-        // 發送訊息
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            
-            if (message && channel) {
-                const messageObj = {
-                    type: 'message',
-                    content: message,
-                    timestamp: new Date().toISOString()
-                };
+        class ChatApp {
+            constructor() {
+                this.xanoClient = new XanoClient({
+                    instanceBaseUrl: 'https://api.besparks.co/',
+                    realtimeConnectionHash: 'eGDwgb5b86PnHVO2OP528Bo7Avg'
+                });
                 
-                // 發送訊息到 channel
-                channel.send(messageObj);
-                displayMessage(messageObj, 'sent');
-                input.value = '';
+                this.channel = this.xanoClient.channel("chatRoom");
+                this.initializeWebSocket();
+            }
+
+            initializeWebSocket() {
+                try {
+                    // 監聽訊息
+                    this.channel.on("message", (message) => {
+                        console.log('Received message:', message);
+                        this.displayMessage(message, 'received');
+                    });
+
+                    // 監聽連接狀態
+                    this.channel.on("connect", () => {
+                        document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
+                        document.getElementById('connectionStatus').style.color = '#4caf50';
+                    });
+
+                    // 監聽錯誤
+                    this.channel.on("error", (error) => {
+                        console.error('WebSocket error:', error);
+                        document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
+                        document.getElementById('connectionStatus').style.color = '#f44336';
+                    });
+
+                    // 監聽斷線
+                    this.channel.on("disconnect", () => {
+                        document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
+                        document.getElementById('connectionStatus').style.color = '#f44336';
+                    });
+
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    document.getElementById('connectionStatus').textContent = '連線狀態: 連接失敗';
+                    document.getElementById('connectionStatus').style.color = '#f44336';
+                }
+            }
+
+            async sendMessage() {
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                
+                if (message && this.channel) {
+                    const messageObj = {
+                        type: 'message',
+                        content: message,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    try {
+                        await this.channel.send(messageObj);
+                        this.displayMessage(messageObj, 'sent');
+                        input.value = '';
+                    } catch (error) {
+                        console.error('Error sending message:', error);
+                    }
+                }
+            }
+
+            displayMessage(message, type) {
+                const messagesDiv = document.getElementById('messages');
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${type}`;
+                
+                const content = typeof message === 'object' ? message.content : message;
+                messageElement.textContent = content;
+                
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
         }
 
-        // 顯示訊息
-        function displayMessage(message, type) {
-            const messagesDiv = document.getElementById('messages');
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${type}`;
-            messageElement.textContent = typeof message === 'object' ? message.content : message;
-            messagesDiv.appendChild(messageElement);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
+        // 初始化聊天應用
+        const chat = new ChatApp();
 
         // 監聽 Enter 鍵
         document.getElementById('messageInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                sendMessage();
+                chat.sendMessage();
             }
         });
-
-        // 初始化
-        initXano();
     </script>
 </body>
 </html>
