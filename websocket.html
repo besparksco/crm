@@ -93,41 +93,36 @@
         class ChatApp {
             constructor() {
                 this.xanoClient = new XanoClient({
-                    instanceBaseUrl: 'https://api.besparks.co/',
-                    realtimeConnectionHash: 'eGDwgb5b86PnHVO2OP528Bo7Avg'
+                    instanceBaseUrl: 'https://api.besparks.co/', // 請確認這是正確的 URL
+                    realtimeConnectionHash: 'eGDwgb5b86PnHVO2OP528Bo7Avg' // 請確認這是有效的 hash
                 });
-                
+
                 this.channel = this.xanoClient.channel("chatRoom");
                 this.initializeWebSocket();
             }
 
             initializeWebSocket() {
                 try {
-                    // 監聽訊息
                     this.channel.on("message", (message) => {
                         console.log('Received message:', message);
                         this.displayMessage(message, 'received');
                     });
 
-                    // 監聽連接狀態
                     this.channel.on("connect", () => {
                         document.getElementById('connectionStatus').textContent = '連線狀態: 已連接';
                         document.getElementById('connectionStatus').style.color = '#4caf50';
                     });
 
-                    // 監聽錯誤
                     this.channel.on("error", (error) => {
                         console.error('WebSocket error:', error);
                         document.getElementById('connectionStatus').textContent = '連線狀態: 錯誤';
                         document.getElementById('connectionStatus').style.color = '#f44336';
                     });
 
-                    // 監聽斷線
                     this.channel.on("disconnect", () => {
                         document.getElementById('connectionStatus').textContent = '連線狀態: 已斷開';
                         document.getElementById('connectionStatus').style.color = '#f44336';
                     });
-
                 } catch (error) {
                     console.error('Connection error:', error);
                     document.getElementById('connectionStatus').textContent = '連線狀態: 連接失敗';
@@ -138,14 +133,14 @@
             async sendMessage() {
                 const input = document.getElementById('messageInput');
                 const message = input.value.trim();
-                
+
                 if (message && this.channel) {
                     const messageObj = {
                         type: 'message',
                         content: message,
                         timestamp: new Date().toISOString()
                     };
-                    
+
                     try {
                         await this.channel.send(messageObj);
                         this.displayMessage(messageObj, 'sent');
@@ -160,19 +155,17 @@
                 const messagesDiv = document.getElementById('messages');
                 const messageElement = document.createElement('div');
                 messageElement.className = `message ${type}`;
-                
+
                 const content = typeof message === 'object' ? message.content : message;
                 messageElement.textContent = content;
-                
+
                 messagesDiv.appendChild(messageElement);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
         }
 
-        // 初始化聊天應用
         const chat = new ChatApp();
 
-        // 監聽 Enter 鍵
         document.getElementById('messageInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 chat.sendMessage();
