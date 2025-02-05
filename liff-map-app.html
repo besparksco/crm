@@ -103,7 +103,9 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
+                const result = await response.json();
+                const iconUrl = result.attachment;
+                const data = result.map;
                 
                 if (!Array.isArray(data) || data.length === 0) {
                     throw new Error('無效的門市資料');
@@ -120,7 +122,8 @@
                         <p>${store.address}</p>
                         ${store.link ? `<p><a href="${store.link}" target="_blank">更多資訊</a></p>` : ''}
                     `,
-                    id: store.id
+                    id: store.id,
+                    iconUrl: iconUrl
                 }));
             } catch (error) {
                 console.error('獲取門市資料失敗:', error);
@@ -180,7 +183,7 @@
                 stores.forEach(store => {
                     const marker = new google.maps.Marker({
                         position: store.position,
-                        icon: "https://img.shoplineapp.com/media/image_clips/67a2ee5fc9ab0e000d5ff067/original.png?1738731103",
+                        icon: store.iconUrl == null? "https://img.shoplineapp.com/media/image_clips/67a2ee5fc9ab0e000d5ff067/original.png?1738731103" : store.iconUrl,
                         map: map,
                         title: store.title
                     });
